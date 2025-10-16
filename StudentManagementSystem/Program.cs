@@ -28,15 +28,33 @@ namespace StudentManagementApp
     // Manager that handles the CRUD opperations 
     public class StudentManager
     {
+        // Instantiate the .txt file
+        private readonly string filePath = "students.txt";
+
         private List<Student> students = new();
         private int nextId = 1;
+
+        // Save data to .txt file
+        private void SaveAllToFile() 
+        {
+            try
+            {
+                var lines = students.Select(s => $"{s.Id}|{s.FullName}|{s.Age}|{s.Course}");
+                File.WriteAllLines(filePath, lines);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving to file: {ex.Message}");
+            }
+        }
 
         // Create
         public void AddStudent(string name, int age, string course)
         {
             var student = new Student(nextId++, name, age, course);
-            students.Add(student);
-            Console.WriteLine("Student added successfully.\n");
+            students.Add(student); // Save student to in-memory list
+            SaveAllToFile(); // Persist the list to the text file
+            Console.WriteLine($"Student {name} added successfully.\n");
         }
 
         // Read
