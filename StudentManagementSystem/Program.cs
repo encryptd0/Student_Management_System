@@ -48,6 +48,39 @@ namespace StudentManagementApp
             }
         }
 
+        // Load data from .txt file
+        public void LoadAllFromFile() 
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                    return; // No file yet, nothing to load
+
+                var lines = File.ReadAllLines(filePath);
+                students = lines
+                    .Where(line => !string.IsNullOrWhiteSpace(line))
+                    .Select(line =>
+                    {
+                        var parts = line.Split('|');
+                        return new Student(
+                            int.Parse(parts[0]),
+                            parts[1],
+                            int.Parse(parts[2]),
+                            parts[3]
+                        );
+                    })
+                    .ToList();
+
+                // Update nextId so it continues from the last student
+                if (students.Count > 0)
+                    nextId = students.Max(s => s.Id) + 1;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading from file: {ex.Message}");
+            }
+        }
+
         // Create
         public void AddStudent(string name, int age, string course)
         {
@@ -96,6 +129,7 @@ namespace StudentManagementApp
             student.FullName = newName;
             student.Age = newAge;
             student.Course = newCourse;
+            SaveAllToFile(); // Persist changes to the .txt file
             Console.WriteLine("Student updated successfully.\n");
         }
 
@@ -110,6 +144,7 @@ namespace StudentManagementApp
             }
 
             students.Remove(student);
+            SaveAllToFile(); // Persist changes to the .txt file
             Console.WriteLine("Student removed successfully.\n");
         }
     }
@@ -120,6 +155,7 @@ namespace StudentManagementApp
         static void Main()
         {
             var manager = new StudentManager();
+            manager.LoadAllFromFile(); // Load any previously saved students
             bool exit = false;
 
             while (!exit)
