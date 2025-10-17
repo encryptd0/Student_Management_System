@@ -1,98 +1,181 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace StudentManagementApp
 {
-    // Student data 
-    public class Student
+    // Ranks for heroes
+    public enum Rank
     {
-        public int Id { get; set; }
-        public string FullName { get; set; }
-        public int Age { get; set; }
-        public string Course { get; set; }
+        C = 1,
+        B,
+        A,
+        S
+    }
 
-        public Student(int id, string fullName, int age, string course)
+    // Threat levels
+    public enum ThreatLevel
+    {
+        Low = 1,
+        Medium,
+        High,
+        Critical
+    }
+
+    // Hero data (converted from Student)
+    public class Hero
+    {
+        public int HeroId { get; set; }
+        public string Name { get; set; }
+        public int Age { get; set; }
+        public string Quirk { get; set; }
+        public double ExamScore { get; set; }
+        public Rank Rank { get; set; }
+        public ThreatLevel ThreatLevel { get; set; }
+
+        public Hero(int heroId, string name, int age, string quirk, double examScore, Rank rank, ThreatLevel threatLevel)
         {
-            Id = id;
-            FullName = fullName;
+            HeroId = heroId;
+            Name = name;
             Age = age;
-            Course = course;
+            Quirk = quirk;
+            ExamScore = examScore;
+            Rank = rank;
+            ThreatLevel = threatLevel;
         }
 
         public override string ToString()
         {
-            return $"ID: {Id} | Name: {FullName} | Age: {Age} | Course: {Course}";
+            return $"HeroID: {HeroId} | Name: {Name} | Age: {Age} | Quirk: {Quirk} | ExamScore: {ExamScore} | Rank: {Rank} | ThreatLevel: {ThreatLevel}";
         }
     }
 
-    // Manager that handles the CRUD opperations 
-    public class StudentManager
+    // Manager that handles the CRUD operations for heroes
+    public class HeroManager
     {
-        private List<Student> students = new();
+        private List<Hero> heroes = new();
         private int nextId = 1;
+        private const string FileName = "superheroes.txt";
+
+        public HeroManager()
+        {
+            LoadAll();
+            if (heroes.Count > 0)
+                nextId = heroes[^1].HeroId + 1;
+        }
+
+        // Load all heroes from file
+        public void LoadAll()
+        {
+            heroes.Clear();
+            if (!File.Exists(FileName))
+                return;
+
+            foreach (var line in File.ReadAllLines(FileName))
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("HeroId")) continue; // skip header
+                var parts = line.Split(',');
+                if (parts.Length != 7) continue;
+                int heroId = int.Parse(parts[0]);
+                string name = parts[1];
+                int age = int.Parse(parts[2]);
+                string quirk = parts[3];
+                double examScore = double.Parse(parts[4]);
+                Rank rank = Enum.Parse<Rank>(parts[5]);
+                ThreatLevel threat = Enum.Parse<ThreatLevel>(parts[6]);
+                heroes.Add(new Hero(heroId, name, age, quirk, examScore, rank, threat));
+            }
+        }
+
+        // Save all heroes to file
+        public void SaveAll()
+        {
+            using var writer = new StreamWriter(FileName, false);
+            writer.WriteLine("HeroId,Name,Age,Quirk,ExamScore,Rank,ThreatLevel");
+            foreach (var h in heroes)
+            {
+                writer.WriteLine($"{h.HeroId},{h.Name},{h.Age},{h.Quirk},{h.ExamScore},{h.Rank},{h.ThreatLevel}");
+            }
+        }
+
+        // Calculate Rank and ThreatLevel based on score
+        public (Rank, ThreatLevel) CalculateRankAndThreat(double score)
+        {
+            if (score >= 81) return (Rank.S, ThreatLevel.Critical);
+            if (score >= 61) return (Rank.A, ThreatLevel.High);
+            if (score >= 41) return (Rank.B, ThreatLevel.Medium);
+            return (Rank.C, ThreatLevel.Low);
+        }
 
         // Create
-        public void AddStudent(string name, int age, string course)
+        public void AddHero(string name, int age, string quirk, double examScore)
         {
-            var student = new Student(nextId++, name, age, course);
-            students.Add(student);
-            Console.WriteLine("Student added successfully.\n");
+            var (rank, threat) = CalculateRankAndThreat(examScore);
+            var hero = new Hero(nextId++, name, age, quirk, examScore, rank, threat);
+            heroes.Add(hero);
+            SaveAll();
+            Console.WriteLine("Hero added successfully.\n");
         }
 
         // Read
-        public void ViewAllStudents()
+        public void ViewAllHeroes()
         {
-            if (students.Count == 0)
+            if (heroes.Count == 0)
             {
-                Console.WriteLine("No students found.\n");
+                Console.WriteLine("No heroes found.\n");
                 return;
             }
 
-            Console.WriteLine("Student List: ");
-            foreach (var s in students)
-                Console.WriteLine(s);
+            Console.WriteLine("Hero List: ");
+            foreach (var h in heroes)
+                Console.WriteLine(h);
             Console.WriteLine();
         }
 
         // Read (Single)
-        public void GetStudentById(int id)
+        public void GetHeroById(int id)
         {
-            var student = students.Find(s => s.Id == id);
-            if (student == null)
-                Console.WriteLine("Student not found.\n");
+            var hero = heroes.Find(h => h.HeroId == id);
+            if (hero == null)
+                Console.WriteLine("Hero not found.\n");
             else
-                Console.WriteLine(student + "\n");
+                Console.WriteLine(hero + "\n");
         }
 
         // Update
-        public void UpdateStudent(int id, string newName, int newAge, string newCourse)
+        public void UpdateHero(int id, string newName, int newAge, string newQuirk, double newExamScore)
         {
-            
-            var student = students.Find(s => s.Id == id);
-            if (student == null)
+            var hero = heroes.Find(h => h.HeroId == id);
+            if (hero == null)
             {
-                Console.WriteLine("Student not found.\n");
+                Console.WriteLine("Hero not found.\n");
                 return;
             }
-            
-            student.FullName = newName;
-            student.Age = newAge;
-            student.Course = newCourse;
-            Console.WriteLine("Student updated successfully.\n");
+
+            var (newRank, newThreat) = CalculateRankAndThreat(newExamScore);
+            hero.Name = newName;
+            hero.Age = newAge;
+            hero.Quirk = newQuirk;
+            hero.ExamScore = newExamScore;
+            hero.Rank = newRank;
+            hero.ThreatLevel = newThreat;
+            SaveAll();
+            Console.WriteLine("Hero updated successfully.\n");
         }
 
         // Delete
-        public void RemoveStudent(int id)
+        public void RemoveHero(int id)
         {
-            var student = students.Find(s => s.Id == id);
-            if (student == null)
+            var hero = heroes.Find(h => h.HeroId == id);
+            if (hero == null)
             {
-                Console.WriteLine("Student not found.\n");
+                Console.WriteLine("Hero not found.\n");
                 return;
             }
 
-            students.Remove(student);
-            Console.WriteLine("Student removed successfully.\n");
+            heroes.Remove(hero);
+            SaveAll();
+            Console.WriteLine("Hero removed successfully.\n");
         }
     }
 
@@ -101,19 +184,19 @@ namespace StudentManagementApp
     {
         static void Main()
         {
-            var manager = new StudentManager();
+            var manager = new HeroManager();
             bool exit = false;
 
             while (!exit)
             {
-                Console.WriteLine("===== Student Management System =====");
-                Console.WriteLine("1️⃣ Add Student");
-                Console.WriteLine("2️⃣ View All Students");
-                Console.WriteLine("3️⃣ Search Student by ID");
-                Console.WriteLine("4️⃣ Update Student");
-                Console.WriteLine("5️⃣ Remove Student");
-                Console.WriteLine("0️⃣ Exit");
-                Console.Write("Select an option: ");
+                Console.WriteLine("===== Hero Management System =====");
+                Console.WriteLine("1️.) To Add Hero");
+                Console.WriteLine("2️.) To View All Heroes");
+                Console.WriteLine("3️.) To Search Hero by ID");
+                Console.WriteLine("4️.) To Update Hero");
+                Console.WriteLine("5️.) To Remove Hero");
+                Console.WriteLine("0️.) To Exit");
+                Console.Write("Please select an option: ");
 
                 string choice = Console.ReadLine();
                 Console.WriteLine();
@@ -123,39 +206,80 @@ namespace StudentManagementApp
                     case "1":
                         Console.Write("Enter name: ");
                         string name = Console.ReadLine();
+
                         Console.Write("Enter age: ");
-                        int age = int.Parse(Console.ReadLine());
-                        Console.Write("Enter course: ");
-                        string course = Console.ReadLine();
-                        manager.AddStudent(name, age, course);
+                        if (!int.TryParse(Console.ReadLine(), out int age))
+                        {
+                            Console.WriteLine("Invalid age.\n");
+                            break;
+                        }
+
+                        Console.Write("Enter quirk: ");
+                        string quirk = Console.ReadLine();
+
+                        Console.Write("Enter exam score: ");
+                        if (!double.TryParse(Console.ReadLine(), out double examScore))
+                        {
+                            Console.WriteLine("Invalid exam score.\n");
+                            break;
+                        }
+
+                        manager.AddHero(name, age, quirk, examScore);
                         break;
 
                     case "2":
-                        manager.ViewAllStudents();
+                        manager.ViewAllHeroes();
                         break;
 
                     case "3":
-                        Console.Write("Enter student ID: ");
-                        int idToView = int.Parse(Console.ReadLine());
-                        manager.GetStudentById(idToView);
+                        Console.Write("Enter hero ID: ");
+                        if (!int.TryParse(Console.ReadLine(), out int idToView))
+                        {
+                            Console.WriteLine("Invalid ID.\n");
+                            break;
+                        }
+                        manager.GetHeroById(idToView);
                         break;
 
                     case "4":
-                        Console.Write("Enter student ID: ");
-                        int idToUpdate = int.Parse(Console.ReadLine());
+                        Console.Write("Enter hero ID: ");
+                        if (!int.TryParse(Console.ReadLine(), out int idToUpdate))
+                        {
+                            Console.WriteLine("Invalid ID.\n");
+                            break;
+                        }
+
                         Console.Write("Enter new name: ");
                         string newName = Console.ReadLine();
+
                         Console.Write("Enter new age: ");
-                        int newAge = int.Parse(Console.ReadLine());
-                        Console.Write("Enter new course: ");
-                        string newCourse = Console.ReadLine();
-                        manager.UpdateStudent(idToUpdate, newName, newAge, newCourse);
+                        if (!int.TryParse(Console.ReadLine(), out int newAge))
+                        {
+                            Console.WriteLine("Invalid age.\n");
+                            break;
+                        }
+
+                        Console.Write("Enter new quirk: ");
+                        string newQuirk = Console.ReadLine();
+
+                        Console.Write("Enter new exam score: ");
+                        if (!double.TryParse(Console.ReadLine(), out double newExamScore))
+                        {
+                            Console.WriteLine("Invalid exam score.\n");
+                            break;
+                        }
+
+                        manager.UpdateHero(idToUpdate, newName, newAge, newQuirk, newExamScore);
                         break;
 
                     case "5":
-                        Console.Write("Enter student ID: ");
-                        int idToDelete = int.Parse(Console.ReadLine());
-                        manager.RemoveStudent(idToDelete);
+                        Console.Write("Enter hero ID: ");
+                        if (!int.TryParse(Console.ReadLine(), out int idToDelete))
+                        {
+                            Console.WriteLine("Invalid ID.\n");
+                            break;
+                        }
+                        manager.RemoveHero(idToDelete);
                         break;
 
                     case "0":
